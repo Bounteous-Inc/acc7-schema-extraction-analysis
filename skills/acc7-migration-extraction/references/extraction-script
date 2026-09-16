@@ -1,0 +1,88 @@
+# Extraction via MCP-Client Script (reference)
+
+**All extraction goes through a script that calls the MCP server's tools and streams each
+result to disk — uniformly, regardless of size.** Do not hand-copy any tool result into
+files through the conversation. A single data path removes the "is this table big enough to
+stream?" judgment call, makes crash-recovery and verification identical everywhere, and
+eliminates the risk of Claude condensing or truncating a payload while retyping it.
+
+Why a script and not the model directly: when a model calls an MCP tool, the result returns
+**into the model's context** — that is how the protocol works, and for huge tables it
+overflows the window and forces truncation (lost data). A program has no such limit: it
+receives the same tool result and streams it to a file. The script uses the exact same MCP
+server and tools the model would; it just isn't bottlenecked by a context window. Claude's
+job is to orchestrate and verify — never to be the pipe the data flows through.
+
+## Division of labor
+
+- **Claude decides** what to pull, in what order, with what field selection (from the
+  inventory), and updates the manifest.
+- **The script pulls** each schema's records page-by-page (via the tools' `cursor` /
+  `next_cursor`) and streams them to disk.
+- **Claude verifies** rows-written against `count_records` and records any shortfall.
+
+## The script
+
+A ready-made, tested implementation ships with this skill at `scripts/extract_records.py`.
+Copy it into the workspace's `scripts/` folder and run it; do not reauthor it. Full usage is
+in `scripts/README.md`. It is an **MCP client** built on the official MCP Python SDK
+(`pip install "mcp[cli]"`). It connects to the ACCv7 MCP server using the transport named by
+`MCP_TRANSPORT` (`http` → the running server URL; `stdio` → spawn the server as a
+subprocess), and exposes one operation per tool: `connection` (`test_connection`),
+`schemas` (`list_schemas`), `count` (`count_records`), `definition`
+(`get_schema_definition`), `records` (`query_schema`), `entity` (`get_entity`).
+
+## Output format
+
+Write records as **JSON Lines** to `extraction/records/<ns>__<name>.jsonl` — one record
+per line. This is append-friendly (crash-safe), streamable by the analysis skill, and
+avoids building one giant JSON array in memory. Also write
+`extraction/records/<ns>__<name>.meta.json`:
+
+```json
+{
+  "schema": "cus:orderLine",
+  "fields": ["@id", "@orderId", "@sku", "@qty"],
+  "where": null,
+  "rows_written": 148213,
+  "expected_count": 148213,
+  "complete": true,
+  "last_cursor": null,
+  "sampled": false
+}
+```
+
+`expected_count` comes from `count_records`. `complete` is `rows_written == expected_count`
+(or `sampled: true` with a note if you intentionally capped a huge table).
+
+## Verification (this is what guarantees nothing is missed)
+
+After the script finishes a schema, Claude compares `rows_written` to the `count_records`
+value captured earlier:
+
+- **Match** → mark the schema `done` in the manifest.
+- **Short** → do not mark done. Record the gap in manifest `notes`
+  ("cus:orderLine: wrote 90,102 of 148,213 — rerun from last_cursor"), and rerun the script
+  from `last_cursor`. Keyset paging makes this safe to resume.
+- **Over** → likely an offset-paging boundary duplicate; switch that schema to keyset if it
+  wasn't already, and de-duplicate on `@id`.
+
+Only when every in-scope schema's `.meta.json` shows `complete: true` (or an explicit,
+noted `sampled: true`) is extraction actually finished.
+
+## When to sample instead of full-pull
+
+Some tables are huge and not worth pulling in full for a migration audit (high-volume
+event/log-like custom tables). If the user agrees, cap those: pull the first N rows, set
+`sampled: true`, and note it. But the **default is full extraction** for custom tables,
+because the whole point is not to miss anything. Sampling is an explicit decision, never a
+silent default.
+
+## Everything uses the script — no exceptions by size
+
+`test_connection`, `list_schemas`, `count_records`, `get_schema_definition`, `query_schema`,
+and `get_entity` all run through the script and write their output to the workspace. The
+structural calls (connection, schema list, counts, definitions) each produce a single
+fixed-size response — the script writes it once to its target file. Records and entities are
+paged/looped as described above. The point is one consistent mechanism: Claude decides what
+to call and verifies the result on disk, the script performs every call and every write.

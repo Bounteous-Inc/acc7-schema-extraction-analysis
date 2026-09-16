@@ -1,0 +1,14 @@
+{
+  "name": "acc7-tools",
+  "owner": {
+    "name": "Manoj Sai Bellamkonda",
+    "email": "manojsai.bellamkonda@bounteous.com"
+  },
+  "plugins": [
+    {
+      "name": "acc7-schema-extraction-analysis",
+      "source": "./",
+      "description": "Skills + MCP client for auditing an Adobe Campaign Classic v7 instance ahead of a v8 migration."
+    }
+  ]
+}

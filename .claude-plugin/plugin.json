@@ -1,0 +1,43 @@
+{
+  "name": "acc7-schema-extraction-analysis",
+  "version": "0.1.0",
+  "description": "Skills + MCP client for auditing an Adobe Campaign Classic v7 instance ahead of a v8 migration: extract structure/config via a read-only ACCv7 MCP server, then produce a testing-team verification deliverable.",
+  "author": {
+    "name": "Manoj Sai Bellamkonda",
+    "email": "manojsai.bellamkonda@bounteous.com"
+  },
+  "homepage": "https://github.com/Bounteous-Inc/acc7-mcp-server",
+  "userConfig": {
+    "acc_base_url": {
+      "type": "string",
+      "title": "ACC base URL",
+      "description": "Base URL of the ACCv7 instance, e.g. https://your-instance.adobesandbox.com",
+      "required": true
+    },
+    "acc_login": {
+      "type": "string",
+      "title": "ACC login",
+      "description": "Native operator login (an Adobe ID cannot use the ACC SOAP API)",
+      "required": true
+    },
+    "acc_password": {
+      "type": "string",
+      "title": "ACC password",
+      "description": "Password for the native operator login above",
+      "sensitive": true,
+      "required": true
+    },
+    "acc_mcp_url": {
+      "type": "string",
+      "title": "ACC MCP server URL (http transport)",
+      "description": "Only used by the acc7-http server entry. Leave default if running the server locally.",
+      "default": "http://127.0.0.1:8000/mcp"
+    },
+    "acc_mcp_server_bin": {
+      "type": "string",
+      "title": "ACC MCP server binary (stdio transport)",
+      "description": "Only used by the acc7-stdio server entry. Path to, or name on PATH of, the acc-mcp-server binary from https://github.com/Bounteous-Inc/acc7-mcp-server.",
+      "default": "acc-mcp-server"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# generated audit workspaces — client data, never commit
+acc7-migration-audit-*/
+
+# personal editor/session config
+.vscode/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

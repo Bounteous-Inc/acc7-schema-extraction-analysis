@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "acc7-http": {
+      "type": "http",
+      "url": "${user_config.acc_mcp_url}",
+      "headers": {
+        "X-ACC-Base-Url": "${user_config.acc_base_url}",
+        "X-ACC-Login": "${user_config.acc_login}",
+        "X-ACC-Password": "${user_config.acc_password}"
+      }
+    },
+    "acc7-stdio": {
+      "type": "stdio",
+      "command": "${user_config.acc_mcp_server_bin}",
+      "args": [],
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "ACC_BASE_URL": "${user_config.acc_base_url}",
+        "ACC_LOGIN": "${user_config.acc_login}",
+        "ACC_PASSWORD": "${user_config.acc_password}"
+      }
+    }
+  }
+}
